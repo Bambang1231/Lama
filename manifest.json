@@ -1,0 +1,27 @@
+{
+  "name": "Daily Worker Attendance",
+  "short_name": "DailyWorker",
+  "description": "Aplikasi absensi dan monitoring Daily Worker berbasis QR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
+  "orientation": "portrait",
+  "theme_color": "#1e40af",
+  "background_color": "#1e40af",
+  "lang": "id-ID",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Analisis Pro - Smart Dashboard</title>
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root{
+            --primary:#1e40af; --secondary:#2563eb; --bg:#f1f5f9; --card:#ffffff;
+            --success:#10b981; --warning:#f59e0b; --danger:#ef4444;
+            --radius:20px; --shadow:0 10px 30px rgba(30, 64, 175, 0.08);
+        }
+        body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:#1e293b;padding-bottom:30px}
+        .header{
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#fff;padding:50px 20px 100px;text-align:center;border-radius:0 0 40px 40px;
+            box-shadow:0 10px 20px rgba(0,0,0,0.1);
+        }
+        .header h2{font-weight:800;margin:0;font-size:24px;display:flex;align-items:center;justify-content:center;gap:10px}
+        #liveClock{font-size:13px;opacity:.9;background:rgba(255,255,255,0.15);padding:6px 15px;border-radius:30px;display:inline-block;margin-top:12px}
+        .container{max-width:1100px;margin:-70px auto 20px;padding:0 166px;padding:0 16px;display:grid;grid-gap:20px}
+        .quick-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+        .nav-card{
+            background:var(--card);padding:20px 10px;border-radius:var(--radius);text-align:center;
+            text-decoration:none;transition:.3s;box-shadow:var(--shadow);
+            display:flex;flex-direction:column;align-items:center;gap:10px;
+        }
+        .nav-card i{font-size:24px;color:var(--primary)}
+        .nav-card span{font-weight:700;font-size:13px;color:var(--primary)}
+        .nav-card:hover{transform:translateY(-5px);background:var(--primary);color:#fff}
+        .nav-card:hover i, .nav-card:hover span{color:#fff}
+        .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+        .kpi-card{
+            background:var(--card);border-radius:var(--radius);padding:20px;
+            display:flex;align-items:center;gap:15px;box-shadow:var(--shadow);
+        }
+        .kpi-icon{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+        .kpi-info h3{margin:0;font-size:22px;font-weight:800}
+        .kpi-info p{margin:0;color:#64748b;font-size:12px;font-weight:600}
+        .badge{font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700;margin-top:5px;display:inline-block}
+        .card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+        .card h4{margin-top:0;margin-bottom:15px;color:var(--primary);display:flex;align-items:center;gap:8px;font-size:16px}
+        .table-wrap{overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        th{text-align:left;padding:12px;font-size:11px;color:#94a3b8;text-transform:uppercase}
+        td{padding:12px;border-bottom:1px solid #f1f5f9;font-size:14px}
+        .input-group{display:grid;grid-gap:10px;margin-bottom:15px}
+        .input{width:100%;padding:12px;border-radius:10px;border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit}
+        .btn{
+            width:100%;padding:12px;border:none;border-radius:10px;background:var(--success);
+            color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px
+        }
+        .btn-export{background:var(--primary);margin-top:15px}
+        .user-id{
+            background:#eff6ff;color:var(--primary);padding:4px 10px;border-radius:8px;
+            font-weight:700;font-size:12px;display:inline-block;margin-bottom:6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2><i class="fas fa-chart-pie"></i> DATA ANALISIS PRO</h2>
+        <div id="liveClock">Memuat waktu...</div>
+    </div>
+
+    <div class="container">
+        <div class="quick-nav">
+            <a href="absen.html" class="nav-card">
+                <i class="fas fa-qrcode"></i>
+                <span>Scanner</span>
+            </a>
+            <a href="data_dw.html" class="nav-card">
+                <i class="fas fa-users-gear"></i>
+                <span>Data Worker</span>
+            </a>
+            <a href="jumlah_hari_kerja.html" class="nav-card">
+                <i class="fas fa-sliders"></i>
+                <span>Setup</span>
+            </a>
+            <a href="analisa.html" class="nav-card">
+                <i class="fas fa-chart-line"></i>
+                <span>Analisa Performa</span>
+            </a>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:#eff6ff;color:var(--primary)"><i class="fas fa-user-group"></i></div>
+                <div class="kpi-info">
+                    <h3 id="kpiWorker">0</h3>
+                    <p>Database Worker</p>
+                    <span id="workerBreakdown" class="badge" style="background:#dbeafe;color:var(--primary)">0 Reguler | 0 Lainnya</span>
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:#ecfdf5;color:var(--success)"><i class="fas fa-calendar-check"></i></div>
+                <div class="kpi-info">
+                    <h3 id="kpiHariIni">0</h3>
+                    <p>Hadir Hari Ini</p>
+                    <span id="attendanceRate" class="badge" style="background:#dcfce7;color:var(--success)">0% Hadir</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4><i class="fas fa-chart-line"></i> Trend Absensi Harian</h4>
+            <canvas id="chartHarian" height="120"></canvas>
+        </div>
+
+        <div class="card">
+            <h4><i class="fas fa-trophy"></i> Top Performance Worker</h4>
+            <canvas id="chartWorker" height="120"></canvas>
+        </div>
+
+        <div class="card">
+            <h4><i class="fas fa-user-plus"></i> Tambah Worker Baru</h4>
+            <div class="input-group">
+                <input id="newDWId" class="input" placeholder="ID Worker (Contoh: 40001)">
+                <input id="newDWNama" class="input" placeholder="Nama Lengkap">
+                <select id="newDWStatus" class="input">
+                    <option value="DW Reguler">DW Reguler</option>
+                    <option value="DW Kontrak">DW Kontrak</option>
+                    <option value="DW Freelance">DW Freelance</option>
+                </select>
+            </div>
+            <button class="btn" onclick="addWorker()"><i class="fas fa-save"></i> Simpan Worker</button>
+        </div>
+
+        <div class="card">
+            <h4><i class="fas fa-list-check"></i> Ringkasan Kehadiran</h4>
+            <div class="table-wrap" id="tableWrap"></div>
+            <button class="btn btn-export" onclick="exportExcel()">
+                <i class="fas fa-file-excel"></i> Export Excel Lengkap
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let db, workers = [], absensi = [];
+        let ch1, ch2;
+
+        // 1. Live Clock
+        function updateTime(){
+            const now = new Date();
+            document.getElementById('liveClock').innerText = now.toLocaleString('id-ID', {
+                weekday:'long', day:'numeric', month:'long', year:'numeric', 
+                hour:'2-digit', minute:'2-digit', second:'2-digit'
+            });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 2. IndexedDB dengan Promise (Senior Pattern)
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open("absensiDB", 1);
+                req.onupgradeneeded = (e) => {
+                    const d = e.target.result;
+                    if (!d.objectStoreNames.contains("workers")) d.createObjectStore("workers", { keyPath: "id" });
+                    if (!d.objectStoreNames.contains("absensi")) d.createObjectStore("absensi", { autoIncrement: true });
+                };
+                req.onsuccess = e => { db = e.target.result; resolve(db); };
+                req.onerror = e => reject("Gagal membuka database");
+            });
+        };
+
+        // 3. Load Data
+        async function loadData() {
+            if (!db) await initDB();
+            const tx = db.transaction(["workers", "absensi"], "readonly");
+            
+            tx.objectStore("workers").getAll().onsuccess = e => { 
+                workers = e.target.result || []; 
+                updateUI(); 
+            };
+            tx.objectStore("absensi").getAll().onsuccess = e => { 
+                absensi = e.target.result || []; 
+                updateUI(); 
+            };
+        }
+
+        // 4. Update UI
+        function updateUI() {
+            document.getElementById('kpiWorker').innerText = workers.length;
+            const today = new Date().toISOString().split('T')[0];
+            const hadirToday = absensi.filter(a => a.tanggal === today).length;
+            document.getElementById('kpiHariIni').innerText = hadirToday;
+
+            let reguler = 0, lainnya = 0;
+            workers.forEach(w => { (w.status === "DW Reguler") ? reguler++ : lainnya++; });
+            document.getElementById('workerBreakdown').innerText = `${reguler} Reguler | ${lainnya} Lainnya`;
+
+            const rate = workers.length ? Math.round(hadirToday/workers.length*100) : 0;
+            document.getElementById('attendanceRate').innerText = rate + "% Hadir";
+
+            renderChart();
+            renderTable();
+        }
+
+        // 5. Charting
+        function renderChart() {
+            if (!document.getElementById('chartHarian')) return;
+            if(ch1) ch1.destroy(); if(ch2) ch2.destroy();
+            
+            const perDay = {}, perWorker = {};
+            const sortedAbsensi = [...absensi].sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+            
+            sortedAbsensi.forEach(a => { 
+                perDay[a.tanggal] = (perDay[a.tanggal]||0)+1; 
+                perWorker[a.nama] = (perWorker[a.nama]||0)+1; 
+            });
+
+            ch1 = new Chart(document.getElementById('chartHarian'), {
+                type:'line',
+                data:{ 
+                    labels: Object.keys(perDay).slice(-7), 
+                    datasets:[{data: Object.values(perDay).slice(-7), label:'Total Hadir', fill:true, backgroundColor:'rgba(30,64,175,0.1)', borderColor:'#1e40af', tension:0.3}] 
+                },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+
+            const top = Object.entries(perWorker).sort((a,b)=>b[1]-a[1]).slice(0,5);
+            ch2 = new Chart(document.getElementById('chartWorker'), {
+                type:'bar',
+                data:{ labels: top.map(x=>x[0]), datasets:[{data: top.map(x=>x[1]), label:'Hari Hadir', backgroundColor:'#10b981'}] },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        // 6. Table Rendering
+        function renderTable() {
+            const sum = absensi.reduce((acc, curr) => {
+                if(!acc[curr.id_dw]) {
+                    const wInfo = workers.find(w => w.id === curr.id_dw);
+                    acc[curr.id_dw] = { id: curr.id_dw, nama: curr.nama, count: 0, status: wInfo ? wInfo.status : "DW Reguler" };
+                }
+                acc[curr.id_dw].count++;
+                return acc;
+            }, {});
+
+            const rows = Object.values(sum).sort((a,b)=>b.count - a.count).map(x => `
+                <tr>
+                    <td><div class="user-id">ID: ${x.id}</div><br><b>${x.nama}</b><br><small>${x.status}</small></td>
+                    <td><span style="color:var(--primary);font-weight:700">${x.count} Hari</span></td>
+                </tr>
+            `).join('');
+
+            document.getElementById('tableWrap').innerHTML = `
+                <table>
+                    <thead><tr><th>Worker Info</th><th>Kehadiran</th></tr></thead>
+                    <tbody>${rows || '<tr><td colspan="2">Belum ada data</td></tr>'}</tbody>
+                </table>`;
+        }
+
+        // 7. Add Worker
+        async function addWorker() {
+            const id = document.getElementById('newDWId').value.trim().toUpperCase();
+            const nama = document.getElementById('newDWNama').value.trim();
+            const status = document.getElementById('newDWStatus').value;
+            if(!id || !nama) return alert("Isi ID dan Nama!");
+
+            const tx = db.transaction("workers", "readwrite");
+            const reqAdd = tx.objectStore("workers").add({id, nama, status, phone:"", alamat:""});
+            
+            reqAdd.onsuccess = () => {
+                document.getElementById('newDWId').value = "";
+                document.getElementById('newDWNama').value = "";
+                loadData();
+                alert("Worker Tersimpan!");
+            };
+            reqAdd.onerror = () => alert("ID sudah ada!");
+        }
+
+        // 8. Excel Export
+        function exportExcel() {
+            if(!absensi.length) return alert("Data kosong");
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(absensi), "Log Absensi");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(workers), "Master Worker");
+            XLSX.writeFile(wb, `Rekap_Absen_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // 9. PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log("SW Registered"))
+                .catch(err => console.log("SW Failed", err));
+            });
+        }
+
+        // Start App
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

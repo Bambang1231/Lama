@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Absensi - Data Analisis Pro</title>
+
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        :root { --primary:#2563eb; --success:#22c55e; --danger:#ef4444; --bg:#f4f6f8; }
+        body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:var(--bg);margin:0;padding:16px;padding-bottom:50px}
+        .header{display:flex;align-items:center;gap:15px;margin-bottom:20px}
+        .header a{color:#333;text-decoration:none;font-size:20px}
+        .card{background:#fff;padding:16px;margin-bottom:12px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.05)}
+        .btn{padding:12px;width:100%;border:none;border-radius:8px;margin-top:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s}
+        .btn-primary{background:var(--primary);color:#fff}
+        .btn-danger{background:var(--danger);color:#fff}
+        .btn-wa{background:var(--success);color:#fff}
+        .input-field{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ddd;box-sizing:border-box}
+        .log-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:12px;border-radius:10px;margin-top:8px;border-left:5px solid var(--success);box-shadow:0 2px 5px rgba(0,0,0,0.05)}
+        .time{font-weight:700;color:var(--primary);font-size:14px}
+        .action{display:flex;gap:8px}
+        .small-btn{padding:10px;font-size:14px;border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        #reader { border-radius: 12px; overflow: hidden; border: none !important; background: #000; }
+        .badge-status { font-size: 10px; background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h2 style="margin:0;font-size:20px">📷 Scanner Absensi</h2>
+</div>
+
+<div class="card">
+    <div id="reader"></div>
+    <button class="btn btn-primary" onclick="startScan()" id="btnStart"><i class="fas fa-camera"></i> Mulai Scan QR</button>
+    <button class="btn btn-danger" onclick="stopScan()" id="btnStop" style="display:none"><i class="fas fa-stop"></i> Stop Kamera</button>
+</div>
+
+<div class="card">
+    <b style="color:var(--primary)"><i class="fas fa-edit"></i> Absen Manual / User Baru</b>
+    <input id="manualId" class="input-field" placeholder="ID Worker (Ketik ID)">
+    <input id="manualNama" class="input-field" placeholder="Nama (Jika belum terdaftar)">
+    <input id="manualTime" class="input-field" type="time">
+    <button class="btn btn-primary" onclick="manualAbsensi()">Simpan Absensi</button>
+</div>
+
+<div class="card">
+    <button class="btn btn-wa" onclick="shareRekapGrup()"><i class="fab fa-whatsapp"></i> Share Rekap Hari Ini</button>
+    <button class="btn btn-danger" style="background:none;color:var(--danger);font-size:12px;width:100%" onclick="hapusSemuaHariIni()">Hapus Semua Log Hari Ini</button>
+</div>
+
+<div id="logAbsen" style="margin-top:20px"></div>
+
+<audio id="ok" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+<audio id="err" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3" preload="auto"></audio>
+
+<script>
+const DB_NAME = "absensiDB";
+let db;
+
+/* ===== INITIALIZATION ===== */
+async function initDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            console.log("Database connected on Scanner page");
+            resolve();
+        };
+        request.onerror = (e) => reject("DB Error");
+    });
+}
+
+const getData = (storeName) => new Promise((resolve) => {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+});
+
+/* ===== SCANNER LOGIC ===== */
+let scanner;
+async function startScan() {
+    document.getElementById('btnStart').style.display = "none";
+    document.getElementById('btnStop').style.display = "flex";
+    
+    scanner = new Html5Qrcode("reader");
+    try {
+        await scanner.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+                stopScan();
+                prosesAbsensi(decodedText.trim().toUpperCase());
+            }
+        );
+    } catch (err) {
+        gagal("Kamera tidak ditemukan atau izin ditolak");
+        stopScan();
+    }
+}
+
+function stopScan() {
+    if (scanner && scanner.isScanning) {
+        scanner.stop().then(() => {
+            document.getElementById('btnStart').style.display = "flex";
+            document.getElementById('btnStop').style.display = "none";
+        });
+    }
+}
+
+/* ===== CORE LOGIC (Offline Ready) ===== */
+async function prosesAbsensi(id, manualTime = null, namaBaru = null) {
+    if (!db) await initDB();
+    
+    const workers = await getData("workers");
+    const allAbsensi = await getData("absensi");
+    const tgl = new Date().toISOString().split("T")[0];
+    
+    let worker = workers.find(x => x.id === id);
+
+    // Auto-Register jika ID belum ada di Master
+    if (!worker) {
+        if (!namaBaru) {
+            const { value: name } = await Swal.fire({
+                title: "ID Baru Terdeteksi",
+                text: `ID ${id} belum terdaftar. Masukkan nama:`,
+                input: 'text',
+                showCancelButton: true,
+                confirmButtonText: 'Daftar & Absen'
+            });
+
+            if (name) {
+                const tx = db.transaction("workers", "readwrite");
+                const newEntry = { id, nama: name, status: "DW Reguler", phone:"", alamat:"" };
+                tx.objectStore("workers").add(newEntry);
+                return tx.oncomplete = () => prosesAbsensi(id, manualTime, name);
+            }
+            return stopScan();
+        }
+        worker = { id, nama: namaBaru, status: "DW Reguler" };
+    }
+
+    // Cek Duplikasi Hari Ini
+    const sudahAbsen = allAbsensi.find(a => a.id_dw === id && a.tanggal === tgl);
+    if (sudahAbsen) return gagal(`ID ${id} sudah absen hari ini!`);
+
+    const dataAbsen = {
+        id_dw: id,
+        nama: worker.nama,
+        status: worker.status || "DW Reguler",
+        tanggal: tgl,
+        jam: manualTime || new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+        timestamp: Date.now()
+    };
+
+    const tx = db.transaction("absensi", "readwrite");
+    tx.objectStore("absensi").add(dataAbsen);
+    tx.oncomplete = () => {
+        sukses(`Berhasil: ${worker.nama}`);
+        renderLog();
+    };
+}
+
+async function manualAbsensi() {
+    const id = document.getElementById("manualId").value.trim().toUpperCase();
+    const nama = document.getElementById("manualNama").value.trim();
+    const waktu = document.getElementById("manualTime").value;
+    if (!id) return gagal("ID Wajib diisi!");
+    await prosesAbsensi(id, waktu, nama || null);
+    document.getElementById("manualId").value = "";
+    document.getElementById("manualNama").value = "";
+    document.getElementById("manualTime").value = "";
+}
+
+/* ===== UI RENDER ===== */
+async function renderLog() {
+    if (!db) await initDB();
+    const tgl = new Date().toISOString().split("T")[0];
+    const all = await getData("absensi");
+    const logHariIni = all.filter(a => a.tanggal === tgl).sort((a,b) => b.timestamp - a.timestamp);
+    
+    let html = `<b style="display:block;margin-bottom:10px">📋 Log Absen Hari Ini (${logHariIni.length})</b>`;
+    
+    if (logHariIni.length === 0) {
+        html += `<div style="text-align:center;color:gray;padding:20px">Belum ada data</div>`;
+    } else {
+        logHariIni.forEach(a => {
+            html += `
+            <div class="log-item">
+                <div>
+                    <span style="font-size:14px;font-weight:700">${a.nama}</span><br>
+                    <small style="color:gray">${a.id_dw}</small> 
+                    <span class="badge-status">${a.status}</span>
+                </div>
+                <div class="action">
+                    <div class="time" style="align-self:center;margin-right:5px">${a.jam}</div>
+                    <button class="small-btn btn-wa" onclick="shareWA('${a.nama}','${a.id_dw}','${a.jam}')"><i class="fab fa-whatsapp"></i></button>
+                    <button class="small-btn btn-danger" onclick="hapusItem(${a.timestamp})"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+        });
+    }
+    document.getElementById("logAbsen").innerHTML = html;
+}
+
+/* ===== UTILS & SHARE ===== */
+function shareWA(nama, id, jam) {
+    const text = `✅ *ABSENSI BERHASIL*\n\n👤 Nama : ${nama}\n🆔 ID   : ${id}\n⏰ Jam  : ${jam}\n📅 Tgl  : ${new Date().toLocaleDateString('id-ID')}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+}
+
+async function shareRekapGrup() {
+    const tgl = new Date().toISOString().split("T")[0];
+    const all = await getData("absensi");
+    const log = all.filter(a => a.tanggal === tgl);
+    if (!log.length) return gagal("Data kosong!");
+
+    let text = `📊 *REKAP ABSENSI HARIAN*\n📅 Tanggal: ${tgl}\n━━━━━━━━━━━━━━\n`;
+    log.forEach((a, i) => { text += `${i + 1}. ${a.nama} (${a.jam})\n`; });
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+}
+
+async function hapusItem(timestamp) {
+    const { isConfirmed } = await Swal.fire({
+        title: "Hapus Log?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Hapus'
+    });
+
+    if (isConfirmed) {
+        const tx = db.transaction("absensi", "readwrite");
+        const store = tx.objectStore("absensi");
+        const req = store.openCursor();
+        req.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                if (cursor.value.timestamp === timestamp) {
+                    cursor.delete();
+                    renderLog();
+                } else {
+                    cursor.continue();
+                }
+            }
+        };
+    }
+}
+
+async function hapusSemuaHariIni() {
+    const { isConfirmed } = await Swal.fire({ title: "Bersihkan log hari ini?", icon: "danger", showCancelButton: true });
+    if (isConfirmed) {
+        const tgl = new Date().toISOString().split("T")[0];
+        const tx = db.transaction("absensi", "readwrite");
+        const store = tx.objectStore("absensi");
+        store.openCursor().onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                if (cursor.value.tanggal === tgl) cursor.delete();
+                cursor.continue();
+            } else {
+                renderLog();
+            }
+        };
+    }
+}
+
+function sukses(m) { 
+    document.getElementById('ok').play().catch(()=>{}); 
+    Swal.fire({ icon: "success", title: m, timer: 1000, showConfirmButton: false }); 
+}
+function gagal(m) { 
+    document.getElementById('err').play().catch(()=>{}); 
+    Swal.fire("Gagal", m, "error"); 
+}
+
+// Inisialisasi awal
+initDB().then(renderLog);
+</script>
+</body>
+</html>

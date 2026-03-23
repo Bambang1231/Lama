@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Kehadiran - Data Analisis Pro</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root{
+            --primary:#1e40af; --secondary:#2563eb; --bg:#f1f5f9;
+            --card:#ffffff; --radius:20px;
+        }
+        body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:#1e293b;padding-bottom:100px}
+        
+        .header{
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            color:#fff;padding:30px 20px 50px;display:flex;align-items:center;gap:15px;
+            border-radius:0 0 30px 30px;
+        }
+        .header a{color:white;text-decoration:none;font-size:20px;width:35px;height:35px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.1);border-radius:10px}
+        .header h2{margin:0;font-size:18px;font-weight:700;}
+
+        .container{max-width:700px;margin:-30px auto 20px;padding:0 15px}
+        
+        .filter-card {
+            background: white; border-radius: var(--radius); padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .input-row label { display: block; font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 5px; text-transform: uppercase; }
+        .input-row input { width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid #e2e8f0; font-family: inherit; box-sizing: border-box; }
+        
+        .btn-action { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: #10b981; color: white; }
+
+        .table-card { background: white; border-radius: var(--radius); overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+        th { background: #f8fafc; padding: 15px; text-align: left; color: #64748b; border-bottom: 2px solid #f1f5f9; }
+        td { padding: 15px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        
+        .date-badge { display: inline-block; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 6px; font-size: 10px; margin: 2px; border: 1px solid #e2e8f0; font-family: monospace; }
+        .total-badge { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 10px; font-weight: 800; display: inline-block; }
+        .status-text { font-size: 10px; color: #64748b; display: block; font-weight: 500; margin-top: 2px; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; display: flex; justify-content: space-around; padding: 12px 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); border-radius: 25px 25px 0 0; z-index: 100; }
+        .bottom-nav a { text-decoration: none; color: #94a3b8; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .bottom-nav a.active { color: var(--primary); font-weight: 700; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h2>REKAP HARI KERJA</h2>
+</div>
+
+<div class="container">
+    <div class="filter-card">
+        <div class="input-row">
+            <div>
+                <label>Dari Tanggal</label>
+                <input type="date" id="tglMulai">
+            </div>
+            <div>
+                <label>Sampai Tanggal</label>
+                <input type="date" id="tglSelesai">
+            </div>
+        </div>
+        <div class="btn-action">
+            <button class="btn btn-primary" onclick="loadRekap()"><i class="fas fa-sync"></i> Filter Data</button>
+            <button class="btn btn-success" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-wrap">
+            <table id="tabelRekap">
+                <thead>
+                    <tr>
+                        <th>Info Worker</th>
+                        <th>Detail Hadir</th>
+                        <th style="text-align:center">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="isiTabel">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <a href="index.html"><i class="fas fa-home"></i><span>Dashboard</span></a>
+    <a href="data_dw.html"><i class="fas fa-users"></i><span>Worker</span></a>
+    <a href="absen.html"><i class="fas fa-qrcode"></i><span>Scan</span></a>
+    <a href="jumlah_hari_kerja.html" class="active"><i class="fas fa-calendar-check"></i><span>Rekap</span></a>
+</div>
+
+<script>
+    const DB_NAME = "absensiDB";
+    let db;
+
+    // 1. Inisialisasi Database
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        
+        // Default: Set input tanggal ke bulan ini (Tanggal 1 s/d Akhir Bulan)
+        const d = new Date();
+        const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+        
+        document.getElementById('tglMulai').value = firstDay;
+        document.getElementById('tglSelesai').value = lastDay;
+        
+        loadRekap();
+    };
+
+    // 2. Fungsi Mengambil Data Gabungan
+    async function loadRekap() {
+        const tglAwal = document.getElementById('tglMulai').value;
+        const tglAkhir = document.getElementById('tglSelesai').value;
+
+        if (!tglAwal || !tglAkhir) return Swal.fire("Error", "Pilih rentang tanggal", "error");
+
+        // Ambil Master Workers untuk mendapatkan status terbaru
+        const workers = await new Promise(res => {
+            const tx = db.transaction("workers", "readonly");
+            tx.objectStore("workers").getAll().onsuccess = e => res(e.target.result || []);
+        });
+
+        // Ambil Log Absensi
+        const transaction = db.transaction(["absensi"], "readonly");
+        const store = transaction.objectStore("absensi");
+        
+        store.getAll().onsuccess = (e) => {
+            const allAbsensi = e.target.result || [];
+            const rekap = {};
+
+            allAbsensi.forEach(item => {
+                // Filter berdasarkan tanggal
+                if (item.tanggal >= tglAwal && item.tanggal <= tglAkhir) {
+                    const id = item.id_dw;
+                    if (!rekap[id]) {
+                        const master = workers.find(w => w.id === id);
+                        rekap[id] = {
+                            nama: master ? master.nama : (item.nama || "Unknown"),
+                            status: master ? (master.status || "DW Reguler") : "DW Reguler",
+                            dates: []
+                        };
+                    }
+                    
+                    if (!rekap[id].dates.includes(item.tanggal)) {
+                        rekap[id].dates.push(item.tanggal);
+                    }
+                }
+            });
+
+            renderTabel(rekap);
+        };
+    }
+
+    // 3. Render ke UI
+    function renderTabel(rekap) {
+        const tbody = document.getElementById('isiTabel');
+        tbody.innerHTML = "";
+        
+        const sortedIds = Object.keys(rekap).sort((a, b) => rekap[a].nama.localeCompare(rekap[b].nama));
+
+        if (sortedIds.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:40px; color:#94a3b8">
+                <i class="fas fa-folder-open fa-2x"></i><br><br>
+                Tidak ada data kehadiran pada periode ini.
+            </td></tr>`;
+            return;
+        }
+
+        sortedIds.forEach(id => {
+            const data = rekap[id];
+            // Format tanggal yang lebih ringkas (DD/MM)
+            const listTanggal = data.dates.sort().map(t => {
+                const parts = t.split('-');
+                return `<span class="date-badge">${parts[2]}/${parts[1]}</span>`;
+            }).join("");
+
+            const row = `
+                <tr>
+                    <td>
+                        <strong style="color:var(--primary)">${data.nama}</strong>
+                        <span class="status-text">${id} • ${data.status}</span>
+                    </td>
+                    <td style="line-height:1.8">${listTanggal}</td>
+                    <td style="text-align:center; vertical-align:middle">
+                        <span class="total-badge">${data.dates.length}</span>
+                        <span style="display:block; font-size:9px; color:#64748b; margin-top:4px">HARI</span>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    // 4. Export Excel dengan Feedback Visual
+    function exportToExcel() {
+        const tglAwal = document.getElementById('tglMulai').value;
+        const tglAkhir = document.getElementById('tglSelesai').value;
+        
+        const table = document.getElementById("tabelRekap");
+        if (table.rows.length <= 1 || table.innerText.includes("Tidak ada data")) {
+            return Swal.fire("Gagal", "Tidak ada data untuk diekspor", "warning");
+        }
+
+        const wb = XLSX.utils.table_to_book(table, {sheet: "Rekap"});
+        XLSX.writeFile(wb, `Rekap_Kehadiran_${tglAwal}_sd_${tglAkhir}.xlsx`);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'Laporan Excel berhasil diunduh',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    }
+</script>
+
+</body>
+</html>
